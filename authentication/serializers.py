@@ -1,10 +1,13 @@
-from rest_framework.serializers import ModelSerializer
-from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model
+
+from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 
 User = get_user_model()
 
 
-class UserSerializer(ModelSerializer):
+class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
@@ -22,4 +25,24 @@ class UserSerializer(ModelSerializer):
         user.set_password(validated_data['password'])
         user.save()
         return user
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        email = data.get('email')
+        password = data.get('password')
+
+        if email and password:
+            user = authenticate(request=self.context.get('request'), email=email, password=password)
+            if not user:
+                raise AuthenticationFailed('Impossible de s\'authentifier avec les informations fournies.')
+        else:
+            raise serializers.ValidationError('Tous les champs sont requis.')
+
+        data['user'] = user
+        return data
+
 
