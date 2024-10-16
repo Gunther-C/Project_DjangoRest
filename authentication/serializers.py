@@ -12,7 +12,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'email', 'age', 'password', 'can_be_contacted', 'can_data_be_shared']
-        extra_kwargs = {'password': {'write_only': True}}
+        extra_kwargs = {
+            'password': {'write_only': True},
+            'username': {'label': 'Nom d\'usage'},
+            'can_be_contacted': {'label': 'Peut ètre contacté'},
+            'can_data_be_shared': {'label': 'Les données peuvent être partagées'}
+        }
 
     def create(self, validated_data):
         user = User(

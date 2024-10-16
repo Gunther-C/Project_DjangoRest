@@ -5,7 +5,7 @@ from .models import User
 
 class CustomUserAdmin(UserAdmin):
     model = User
-    list_display = ('username', 'email', 'age', 'date_joined', 'can_be_contacted', 'can_data_be_shared',
+    list_display = ('id', 'username', 'email', 'age', 'date_joined', 'can_be_contacted', 'can_data_be_shared',
                     'is_superuser', 'is_active',)
     list_filter = ('date_joined', 'is_superuser',)
     fieldsets = (
@@ -15,7 +15,7 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2', 'age', 'date_joined', 'can_be_contacted',
+            'fields': ('id', 'username', 'email', 'password1', 'password2', 'age', 'date_joined', 'can_be_contacted',
                        'can_data_be_shared', 'is_superuser', 'is_active')
         }),
     )
