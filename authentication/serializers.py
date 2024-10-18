@@ -1,5 +1,4 @@
 from django.contrib.auth import authenticate, get_user_model
-
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 
@@ -10,7 +9,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'age', 'password', 'can_be_contacted', 'can_data_be_shared']
+        fields = ['username', 'age', 'password', 'can_be_contacted', 'can_data_be_shared']
         extra_kwargs = {
             'password': {'write_only': True},
             'username': {'label': 'Nom d\'usage'},
@@ -20,7 +19,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = User(
-            email=validated_data['email'],
             username=validated_data['username'],
             age=validated_data['age'],
             can_be_contacted=validated_data['can_be_contacted'],
@@ -32,15 +30,15 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    username = serializers.CharField(max_length=50)
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        email = data.get('email')
+        username = data.get('username')
         password = data.get('password')
 
-        if email and password:
-            user = authenticate(request=self.context.get('request'), email=email, password=password)
+        if username and password:
+            user = authenticate(request=self.context.get('request'), username=username, password=password)
             if not user:
                 raise AuthenticationFailed('Impossible de s\'authentifier avec les informations fournies.')
         else:

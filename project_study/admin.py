@@ -3,16 +3,15 @@ from .models import Project
 
 
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'author', 'type', 'created_date', 'is_active')
-    list_filter = ('type', 'created_date', 'is_active')
+    list_display = ('id', 'name', 'author', 'type', 'date_joined')
+    list_filter = ('type', 'date_joined')
     fieldsets = (
         (None, {'fields': ('name', 'description')}),
         ('Details', {'fields': ('author', 'type')}),
-        ('Dates', {'fields': ('created_date', 'updated_date')}),
-        ('Status', {'fields': ('is_active',)}),
+        ('Dates', {'fields': ('date_joined', 'create')}),
     )
     search_fields = ('name', 'author__username')
-    ordering = ('created_date',)
+    ordering = ('date_joined',)
 
 
 admin.site.register(Project, ProjectAdmin)
