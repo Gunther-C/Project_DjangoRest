@@ -8,7 +8,7 @@ class ProjectAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('name', 'description')}),
         ('Details', {'fields': ('author', 'type')}),
-        ('Dates', {'fields': ('date_joined', 'create')}),
+
     )
     search_fields = ('name', 'author__username')
     ordering = ('date_joined',)

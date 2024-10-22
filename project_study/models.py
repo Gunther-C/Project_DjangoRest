@@ -13,6 +13,7 @@ class Project(models.Model):
     def __str__(self):
         return self.name
 
+    # a faire dans la vue
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         Contributor.objects.get_or_create(user=self.author, project=self, defaults={'role': 'Author'})

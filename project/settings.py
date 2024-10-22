@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import timedelta
 import os.path
 
 
@@ -11,6 +12,8 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 AUTH_USER_MODEL = 'authentication.User'
+
+SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(hours=10)}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
