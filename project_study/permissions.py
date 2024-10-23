@@ -8,3 +8,15 @@ class IsAuthorOrReadOnly(BasePermission):
             return True
         return obj.author == request.user
 
+
+class IsAuthor(BasePermission):
+    def has_object_permission(self, request, view, obj):
+
+        return obj.author == request.user
+
+
+class IsContributor(BasePermission):
+    def has_object_permission(self, request, view, obj):
+
+        return obj.contributor == request.user
+

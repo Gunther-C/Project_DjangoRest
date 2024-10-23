@@ -15,7 +15,7 @@ class Project(models.Model):
 
 
 class Contributor(models.Model):
-    user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='contributor_project')
+    user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='project_contributor')
     project = models.ForeignKey(to=Project, on_delete=models.CASCADE, related_name='project_shared')
     role = models.CharField(max_length=50)
     created_date = models.DateTimeField(auto_now_add=True)

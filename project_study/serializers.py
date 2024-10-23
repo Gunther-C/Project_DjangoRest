@@ -12,49 +12,15 @@ class ProjectSerializer(serializers.ModelSerializer):
         read_only_fields = ['author', 'date_joined']
 
 
-class AddContributorSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(max_length=100)
+class ContributorSerializer(serializers.ModelSerializer):
+
     project_id = serializers.IntegerField(required=False, allow_null=True)
     project_name = serializers.CharField(max_length=255, required=False, allow_null=True)
+    projects = Project.objects.all()
+    project_list = serializers.CharField(max_length=255, choices=projects)
 
     class Meta:
         model = Contributor
-        fields = ['username', 'project_id', 'project_name']
+        fields = ['project_id', 'project_name', 'project_list']
+        read_only_fields = ['user', 'role']
 
-    def validate(self, data):
-        try:
-            user = User.objects.get(username=data['username'])
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Utilisateur non trouvé.")
-        data['user'] = user
-
-        project_id = data.get('project_id')
-        project_name = data.get('project_name')
-
-        if project_id is not None:
-            try:
-                project = Project.objects.get(id=project_id)
-            except Project.DoesNotExist:
-                raise serializers.ValidationError("Projet non trouvé.")
-
-        elif project_name:
-            try:
-                cleaned_project_name = " ".join(project_name.split())
-                project = Project.objects.get(name__iexact=cleaned_project_name)
-            except Project.DoesNotExist:
-                raise serializers.ValidationError("Projet non trouvé.")
-
-        else:
-            raise serializers.ValidationError("Vous devez fournir soit l'ID soit le nom du projet.")
-
-        data['project'] = project
-        return data
-
-    def create(self, validated_data):
-        user = validated_data['user']
-        project = validated_data['project']
-        contributor, created = Contributor.objects.get_or_create(user=user, project=project,
-                                                                 defaults={'role': 'contributor'})
-        if not created:
-            raise serializers.ValidationError("Projet non trouvé.")
-        return contributor
