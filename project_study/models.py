@@ -13,11 +13,6 @@ class Project(models.Model):
     def __str__(self):
         return self.name
 
-    # a faire dans la vue
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        Contributor.objects.get_or_create(user=self.author, project=self, defaults={'role': 'Author'})
-
 
 class Contributor(models.Model):
     user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='contributor_project')

@@ -20,7 +20,7 @@ class ProjectViewSet(ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsAuthorOrReadOnly]
 
     def get_queryset(self):
-        return Project.objects.filter(contributors__user=self.request.user)
+        return Project.objects.filter(project_shared__user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -37,49 +37,16 @@ class ProjectViewSet(ModelViewSet):
             raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer ce projet."})
         instance.delete()
 
-
-class AddContributorAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, pk):
-        project = Project.objects.get(id=pk)
-        if request.user != project.author:
-            return Response({"detail": "Vous n'êtes pas autorisé à ajouter des contributeurs à ce projet."},
-                            status=status.HTTP_403_FORBIDDEN)
-
-        serializer = AddContributorSerializer(data=request.data, context={'project': project})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-"""
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
-    def add_contributor(self, request, pk=None):
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsAuthorOrReadOnly])
+    def add_contributor(self, request, pk):
         project = self.get_object()
-        if request.user != project.author:
-            return Response({"detail": "Vous n'êtes pas autorisé à ajouter des contributeurs à ce projet."},
-                            status=status.HTTP_403_FORBIDDEN)
-
         serializer = AddContributorSerializer(data=request.data, context={'project': project})
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-
-
-
-class CreateProjectAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        serializer = ProjectSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            serializer.save(author=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-"""
-
+    @action(detail=True, methods=['delete'],  permission_classes=[permissions.IsAuthenticated, IsAuthorOrReadOnly])
+    def del_contributor(self, request, pk):
+        project = self.get_object()
+        user = User.objects.get(username=request.data['username'])
+        contributor = Contributor.objects.get(user=user, project=project)
+        contributor.delete()

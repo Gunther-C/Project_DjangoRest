@@ -9,16 +9,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'name', 'description', 'type', 'author', 'date_joined']
-
-    def update(self, instance, validated_data):
-        if self.context['request'].user != instance.author:
-            raise serializers.ValidationError("Vous n'êtes pas autorisé à modifier ce projet.")
-        return super().update(instance, validated_data)
-
-    def delete(self, instance):
-        if self.context['request'].user != instance.author:
-            raise serializers.ValidationError("Vous n'êtes pas autorisé à supprimer ce projet.")
-        instance.delete()
+        read_only_fields = ['author', 'date_joined']
 
 
 class AddContributorSerializer(serializers.ModelSerializer):
@@ -64,4 +55,6 @@ class AddContributorSerializer(serializers.ModelSerializer):
         project = validated_data['project']
         contributor, created = Contributor.objects.get_or_create(user=user, project=project,
                                                                  defaults={'role': 'contributor'})
-        return
+        if not created:
+            raise serializers.ValidationError("Projet non trouvé.")
+        return contributor
