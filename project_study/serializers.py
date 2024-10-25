@@ -13,14 +13,10 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 
 class ContributorSerializer(serializers.ModelSerializer):
-
-    project_id = serializers.IntegerField(required=False, allow_null=True)
-    project_name = serializers.CharField(max_length=255, required=False, allow_null=True)
-    projects = Project.objects.all()
-    project_list = serializers.CharField(max_length=255, choices=projects)
+    project = serializers.PrimaryKeyRelatedField(queryset=Project.objects.all())
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
 
     class Meta:
         model = Contributor
-        fields = ['project_id', 'project_name', 'project_list']
-        read_only_fields = ['user', 'role']
-
+        fields = ['project', 'user', 'role', 'created_date']
+        read_only_fields = ['user', 'role', 'created_date']
