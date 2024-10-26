@@ -42,4 +42,26 @@ class UserProfileViewSet(ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return User.objects.filter(id=self.request.user.id)
+        return User.objects.filter(pk=self.request.user.id)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        serializer.save()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

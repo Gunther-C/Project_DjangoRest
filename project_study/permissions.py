@@ -12,8 +12,9 @@ class IsAuthorOrReadOnly(BasePermission):
 
 class IsAuthor(BasePermission):
     def has_object_permission(self, request, view, obj):
-
-        return obj.author == request.user
+        if request.method == 'POST':
+            return True
+        return Contributor.objects.filter(user=request.user, project=obj, role='author').exists()
 
 
 class IsContributor(BasePermission):

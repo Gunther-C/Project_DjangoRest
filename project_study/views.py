@@ -37,18 +37,6 @@ class ProjectViewSet(ModelViewSet):
             raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer ce projet."})
         instance.delete()
 
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsContributor])
-    def add_contributor(self, request, pk):
-        project = self.get_object()
-        contributor, created = Contributor.objects.get_or_create(
-            user=self.request.user, project=project, role='contributor')
-
-        if created:
-            return Response({'detail': "Vous êtes maintenant contributeur du projet"},
-                            status=status.HTTP_201_CREATED)
-        return Response({'detail': "Vous êtes déja contributeur de ce projet."},
-                        status=status.HTTP_400_BAD_REQUEST)
-
     @action(detail=True, methods=['delete'],  permission_classes=[permissions.IsAuthenticated, IsContributor])
     def del_contributor(self, request, pk):
         project = self.get_object()
@@ -68,8 +56,31 @@ class ContributorViewSet(ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Contributor.objects.filter(user=self.request.user)
+        return Contributor.objects.filter(project__author=self.request.user, role='contributor')
 
+    def perform_create(self, serializer):
+        project_id = self.request.data.get('project')
+        user_id = self.request.data.get('user')
+
+        project = Project.objects.get(pk=project_id)
+        user = User.objects.get(pk=user_id)
+        contributor = Contributor.objects.filter(user=user, project=project, role='contributor').exists()
+
+        if contributor:
+            raise ValidationError({"detail": "Cette utilisateur est déja contributeur de ce projet."})
+
+        if project.author != self.request.user:
+            raise PermissionDenied({"detail": "Vous n'êtes pas l'auteur de ce projet"})
+
+        if user == self.request.user:
+            raise PermissionDenied({"detail": "Vous êtes déja l'auteur de ce projet"})
+
+        serializer.save(user=user, project=project, role='contributor')
+
+
+
+
+"""
     def perform_create(self, serializer):
         project_id = self.request.data.get('project')
         user_id = self.request.data.get('user')
@@ -77,6 +88,10 @@ class ContributorViewSet(ModelViewSet):
         try:
             project = Project.objects.get(pk=project_id)
             user = User.objects.get(pk=user_id)
+            contributor = Contributor.objects.filter(user=user, project=project, role='contributor').exists()
+
+            if contributor:
+                raise ValidationError({"detail": "Cette utilisateur est déja contributeur de ce projet."})
 
             if project.author != self.request.user:
                 raise PermissionDenied({"detail": "Vous n'êtes pas l'auteur de ce projet"})
@@ -91,15 +106,12 @@ class ContributorViewSet(ModelViewSet):
 
         except User.DoesNotExist:
             raise ValidationError({"detail": "Cet utilisateur n'a pas été trouvé."})
-
+            
+        
     def perform_destroy(self, instance):
-        project_id = self.request.data.get('project')
-        user_id = self.request.data.get('user')
 
         try:
-            project = Project.objects.get(pk=project_id)
-            user = User.objects.get(pk=user_id)
-            contributor = Contributor.objects.get(user=user, project=project)
+            contributor = Contributor.objects.get(pk=instance.pk)
 
             if contributor.project.author != self.request.user:
                 raise PermissionDenied({"detail": "Vous n'êtes pas l'auteur de ce projet"})
@@ -108,26 +120,10 @@ class ContributorViewSet(ModelViewSet):
                 raise PermissionDenied({"detail": "L'auteur ne peut pas se retirer du projet."})
 
             instance.delete()
-            """
-            instance.delete() ne correspond pas plutot contributor.delete()
-            
-            alors ou decorator @action
-            ou récupérer id contributor avec instance.pk
-            
-            """
-
-        except Project.DoesNotExist:
-            raise ValidationError({"detail": "Le projet n'a pas été trouvé."})
-
-        except User.DoesNotExist:
-            raise ValidationError({"detail": "Cet utilisateur n'a pas été trouvé."})
 
         except Contributor.DoesNotExist:
             raise ValidationError({"detail": "Le contributeur n'a pas été trouvé."})
-
-
-
-
+"""
 
 
 
