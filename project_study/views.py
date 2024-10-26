@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from .models import Project, Contributor
 from .serializers import ProjectSerializer, ContributorSerializer
-from .permissions import IsAuthorOrReadOnly, IsAuthor
+from .permissions import IsAuthorOrReadOnly, IsContributor, IsAuthor
 
 User = get_user_model()
 
@@ -37,36 +37,29 @@ class ProjectViewSet(ModelViewSet):
             raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer ce projet."})
         instance.delete()
 
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsAuthor])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsContributor])
     def add_contributor(self, request, pk):
         project = self.get_object()
-        username = request.data.get('username')
-        if not username:
-            raise NotFound({'detail': 'Vous devez mettre un nom de contributeur'})
+        contributor, created = Contributor.objects.get_or_create(
+            user=self.request.user, project=project, role='contributor')
 
-        username = " ".join(username.split())
-        user = User.objects.get(username=username)
-        if not user:
-            raise NotFound({'detail': 'Ce nom n\'éxiste pas'})
+        if created:
+            return Response({'detail': "Vous êtes maintenant contributeur du projet"},
+                            status=status.HTTP_201_CREATED)
+        return Response({'detail': "Vous êtes déja contributeur de ce projet."},
+                        status=status.HTTP_400_BAD_REQUEST)
 
-        contributor = Contributor.objects.create(user=user, project=project, role='contributor')
-        if contributor:
-            return Response({'detail': 'Contributeur ajouté'}, status=status.HTTP_201_CREATED)
-        return Response({'detail': 'le contributeur n\'est pas ajouté'}, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=True, methods=['delete'],  permission_classes=[permissions.IsAuthenticated, IsAuthor])
+    @action(detail=True, methods=['delete'],  permission_classes=[permissions.IsAuthenticated, IsContributor])
     def del_contributor(self, request, pk):
         project = self.get_object()
-        user = User.objects.get(username=request.data['username'])
-        if user == project.author:
-            raise ValidationError({"detail": "L'auteur ne peut pas être supprimé des contributeurs."})
 
-        contributor = Contributor.objects.get(user=user, project=project)
-        if contributor:
+        try:
+            contributor = Contributor.objects.get(user=self.request.user, project=project)
             contributor.delete()
-            return Response({'detail': 'Contributeur supprimé'}, status=status.HTTP_201_CREATED)
-        return Response({'detail': 'erreur'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': "Vous n'êtes plus contributeur du projet"}, status=status.HTTP_201_CREATED)
 
+        except Contributor.DoesNotExist:
+            raise ValidationError({"detail": "Vous n'êtes pas contributeur de ce projet."})
 
 
 class ContributorViewSet(ModelViewSet):
@@ -77,36 +70,64 @@ class ContributorViewSet(ModelViewSet):
     def get_queryset(self):
         return Contributor.objects.filter(user=self.request.user)
 
-    def create(self, request, *args, **kwargs):
-        project_id = request.data.get('project')
+    def perform_create(self, serializer):
+        project_id = self.request.data.get('project')
+        user_id = self.request.data.get('user')
+
         try:
             project = Project.objects.get(pk=project_id)
+            user = User.objects.get(pk=user_id)
 
-            if Contributor.objects.filter(user=self.request.user, project=project).exists():
-                raise ValidationError({"detail": "Vous êtes déjà contributeur de ce projet."})
+            if project.author != self.request.user:
+                raise PermissionDenied({"detail": "Vous n'êtes pas l'auteur de ce projet"})
 
-            Contributor.objects.create(user=self.request.user, project=project, role='contributor')
+            if user == self.request.user:
+                raise PermissionDenied({"detail": "Vous êtes déja l'auteur de ce projet"})
+
+            serializer.save(user=user, project=project, role='contributor')
 
         except Project.DoesNotExist:
-            raise NotFound({'detail': "Projet non trouvé."})
+            raise ValidationError({"detail": "Le projet n'a pas été trouvé."})
 
-        return super().create(request, *args, **kwargs)
+        except User.DoesNotExist:
+            raise ValidationError({"detail": "Cet utilisateur n'a pas été trouvé."})
 
-    def destroy(self, request, *args, **kwargs):
-        project_name = request.data.get('project')
-        project = Project.objects.get(name=project_name)
-        if not project:
-            raise ({"detail": "Projet non trouvé."})
+    def perform_destroy(self, instance):
+        project_id = self.request.data.get('project')
+        user_id = self.request.data.get('user')
 
-        if self.request.user == project.author:
-            raise ValidationError({"detail": "L'auteur ne peut pas se retirer du projet."})
+        try:
+            project = Project.objects.get(pk=project_id)
+            user = User.objects.get(pk=user_id)
+            contributor = Contributor.objects.get(user=user, project=project)
 
-        contributor = Contributor.objects.get(user=self.request.user, project=project)
+            if contributor.project.author != self.request.user:
+                raise PermissionDenied({"detail": "Vous n'êtes pas l'auteur de ce projet"})
 
-        if contributor:
-            contributor.delete()
-            return Response({"detail": "Vous avez quitté le projet."}, status=status.HTTP_200_OK)
-        return Response({"detail": "Vous n'êtes pas contributeur de ce projet."}, status=status.HTTP_400_BAD_REQUEST)
+            if contributor.user == self.request.user:
+                raise PermissionDenied({"detail": "L'auteur ne peut pas se retirer du projet."})
+
+            instance.delete()
+            """
+            instance.delete() ne correspond pas plutot contributor.delete()
+            
+            alors ou decorator @action
+            ou récupérer id contributor avec instance.pk
+            
+            """
+
+        except Project.DoesNotExist:
+            raise ValidationError({"detail": "Le projet n'a pas été trouvé."})
+
+        except User.DoesNotExist:
+            raise ValidationError({"detail": "Cet utilisateur n'a pas été trouvé."})
+
+        except Contributor.DoesNotExist:
+            raise ValidationError({"detail": "Le contributeur n'a pas été trouvé."})
+
+
+
+
 
 
 

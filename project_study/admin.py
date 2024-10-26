@@ -14,5 +14,16 @@ class ProjectAdmin(admin.ModelAdmin):
     ordering = ('date_joined',)
 
 
+class ContributorAdmin(admin.ModelAdmin):
+    list_display = ('id', 'project', 'user', 'role', 'created_date')
+    list_filter = ('role', 'created_date')
+    fieldsets = (
+        (None, {'fields': ('project',)}),
+        ('Details', {'fields': ('user', 'role')}),
+
+    )
+    ordering = ('created_date',)
+
+
 admin.site.register(Project, ProjectAdmin)
-admin.site.register(Contributor)
+admin.site.register(Contributor, ContributorAdmin)

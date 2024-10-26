@@ -1,4 +1,5 @@
 from rest_framework.permissions import BasePermission
+from .models import Contributor
 
 
 class IsAuthorOrReadOnly(BasePermission):
@@ -17,6 +18,6 @@ class IsAuthor(BasePermission):
 
 class IsContributor(BasePermission):
     def has_object_permission(self, request, view, obj):
+        return Contributor.objects.filter(user=request.user, project=obj, role='contributor').exists()
 
-        return obj.contributor == request.user
 
