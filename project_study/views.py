@@ -6,8 +6,8 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 
-from .models import Project, Contributor
-from .serializers import ProjectSerializer, ContributorSerializer
+from .models import Project, Contributor, Issue, Comment
+from .serializers import ProjectSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
 from .permissions import IsAuthorOrReadOnly, IsContributor, IsAuthor
 
 User = get_user_model()
@@ -78,53 +78,25 @@ class ContributorViewSet(ModelViewSet):
         serializer.save(user=user, project=project, role='contributor')
 
 
+class IssueViewSet(viewsets.ModelViewSet):
+    queryset = Issue.objects.all()
+    serializer_class = IssueSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        return Issue.objects.filter(project__contributors__user=self.request.user)
 
-"""
     def perform_create(self, serializer):
-        project_id = self.request.data.get('project')
-        user_id = self.request.data.get('user')
-
-        try:
-            project = Project.objects.get(pk=project_id)
-            user = User.objects.get(pk=user_id)
-            contributor = Contributor.objects.filter(user=user, project=project, role='contributor').exists()
-
-            if contributor:
-                raise ValidationError({"detail": "Cette utilisateur est déja contributeur de ce projet."})
-
-            if project.author != self.request.user:
-                raise PermissionDenied({"detail": "Vous n'êtes pas l'auteur de ce projet"})
-
-            if user == self.request.user:
-                raise PermissionDenied({"detail": "Vous êtes déja l'auteur de ce projet"})
-
-            serializer.save(user=user, project=project, role='contributor')
-
-        except Project.DoesNotExist:
-            raise ValidationError({"detail": "Le projet n'a pas été trouvé."})
-
-        except User.DoesNotExist:
-            raise ValidationError({"detail": "Cet utilisateur n'a pas été trouvé."})
-            
-        
-    def perform_destroy(self, instance):
-
-        try:
-            contributor = Contributor.objects.get(pk=instance.pk)
-
-            if contributor.project.author != self.request.user:
-                raise PermissionDenied({"detail": "Vous n'êtes pas l'auteur de ce projet"})
-
-            if contributor.user == self.request.user:
-                raise PermissionDenied({"detail": "L'auteur ne peut pas se retirer du projet."})
-
-            instance.delete()
-
-        except Contributor.DoesNotExist:
-            raise ValidationError({"detail": "Le contributeur n'a pas été trouvé."})
-"""
+        serializer.save(author=self.request.user)
 
 
+class CommentViewSet(viewsets.ModelViewSet):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        return Comment.objects.filter(issue__project__contributors__user=self.request.user)
 
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
