@@ -19,7 +19,7 @@ class ProjectViewSet(ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Project.objects.filter(project_shared__user=self.request.user)
+        return Project.objects.filter(contributor_project__user=self.request.user)
 
     def perform_create(self, serializer):
         project = serializer.save(author=self.request.user)
@@ -78,25 +78,34 @@ class ContributorViewSet(ModelViewSet):
         serializer.save(user=user, project=project, role='contributor')
 
 
-class IssueViewSet(viewsets.ModelViewSet):
+class IssueViewSet(ModelViewSet):
     queryset = Issue.objects.all()
     serializer_class = IssueSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Issue.objects.filter(project__contributors__user=self.request.user)
+        return Issue.objects.filter(project__contributor_project__user=self.request.user)
 
     def perform_create(self, serializer):
+        assigned_to = serializer.validated_data.get('assigned_to')
+        project = serializer.validated_data.get('project')
+
+        if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to).exists():
+            raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
+
         serializer.save(author=self.request.user)
 
 
-class CommentViewSet(viewsets.ModelViewSet):
+class CommentViewSet(ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Comment.objects.filter(issue__project__contributors__user=self.request.user)
+        return Comment.objects.filter(issue__project__contributor_project__user=self.request.user)
 
     def perform_create(self, serializer):
+        issue = serializer.validated_data.get('issue')
+        if not Contributor.objects.filter(project=issue.project, user=self.request.user).exists():
+            raise ValidationError('Vous devez être contributeur du projet pour créer un commentaire.')
         serializer.save(author=self.request.user)

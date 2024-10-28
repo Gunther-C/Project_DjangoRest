@@ -13,9 +13,3 @@ router.register('comment', CommentViewSet, basename='comment')
 urlpatterns = [
     path('', include(router.urls)),
 ]
-
-"""
-
-faire un migrate
-
-"""
