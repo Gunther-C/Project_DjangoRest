@@ -90,10 +90,35 @@ class IssueViewSet(ModelViewSet):
         assigned_to = serializer.validated_data.get('assigned_to')
         project = serializer.validated_data.get('project')
 
+        if not Contributor.objects.filter(project=project, user=self.request.user).exists():
+            raise ValidationError('Vous devez être contributeur du projet pour créer une issue.')
+
         if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
 
         serializer.save(author=self.request.user)
+
+    def perform_update(self, serializer):
+        issue = self.get_object()
+        assigned_to = serializer.validated_data.get('assigned_to')
+        project = serializer.validated_data.get('project')
+
+        if self.request.user != issue.author:
+            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à modifier cette issue."})
+
+        if not Contributor.objects.filter(project=project, user=self.request.user).exists():
+            raise ValidationError('Vous devez être contributeur du projet pour modifier une issue.')
+
+        if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to).exists():
+            raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        issue = self.get_object()
+        if self.request.user != issue.author:
+            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer cette issue."})
+        instance.delete()
 
 
 class CommentViewSet(ModelViewSet):
@@ -109,3 +134,21 @@ class CommentViewSet(ModelViewSet):
         if not Contributor.objects.filter(project=issue.project, user=self.request.user).exists():
             raise ValidationError('Vous devez être contributeur du projet pour créer un commentaire.')
         serializer.save(author=self.request.user)
+
+    def perform_update(self, serializer):
+        comment = self.get_object()
+        issue = serializer.validated_data.get('issue')
+
+        if self.request.user != comment.author:
+            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à modifier ce commentaire."})
+
+        if not Contributor.objects.filter(project=issue.project, user=self.request.user).exists():
+            raise ValidationError('Vous devez être contributeur du projet pour modifier ce commentaire.')
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        comment = self.get_object()
+        if self.request.user != comment.author:
+            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer ce commentaire."})
+        instance.delete()
