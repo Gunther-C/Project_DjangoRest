@@ -23,7 +23,7 @@ class Contributor(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username}, {self.project.name}, {self.role}"
+        return self.user.username
 
 
 class Issue(models.Model):
@@ -35,7 +35,6 @@ class Issue(models.Model):
     description = models.TextField()
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='issue_project')
     author = models.ForeignKey(Contributor, on_delete=models.CASCADE, related_name='issue_author')
-
     assigned_to = models.ForeignKey(Contributor, on_delete=models.CASCADE,
                                     related_name='issue_assigned', null=True, blank=True)
 
@@ -57,4 +56,4 @@ class Comment(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Auteur {self.author.username} issue {self.issue.title}"
+        return self.issue.title

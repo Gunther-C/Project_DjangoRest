@@ -89,15 +89,18 @@ class IssueViewSet(ModelViewSet):
     def perform_create(self, serializer):
         assigned_to = serializer.validated_data.get('assigned_to')
         project = serializer.validated_data.get('project')
-        author = Contributor.objects.get(project=project, user=self.request.user)
+        author = get_object_or_404(Contributor, pk=self.request.user.id)
 
-        if not Contributor.objects.filter(project=project, user=self.request.user).exists():
+        try:
+            author = Contributor.objects.get(project=project, user=self.request.user)
+
+            if assigned_to and not Contributor.objects.filter(project=project, id=assigned_to.id).exists():
+                raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
+
+            serializer.save(author=author)
+
+        except Contributor.DoesNotExist:
             raise ValidationError('Vous devez être contributeur du projet pour créer une issue.')
-
-        if assigned_to and not Contributor.objects.filter(project=project, id=assigned_to.id).exists():
-            raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
-
-        serializer.save(author=author)
 
     def perform_update(self, serializer):
         issue = self.get_object()
@@ -133,12 +136,12 @@ class CommentViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         issue = serializer.validated_data.get('issue')
-        author = Contributor.objects.get(project=project, user=self.request.user)
+        try:
+            author = Contributor.objects.get(project=issue.project, user=self.request.user)
+            serializer.save(author=author)
 
-        if not Contributor.objects.filter(project=issue.project, user=self.request.user).exists():
+        except Contributor.DoesNotExist:
             raise ValidationError('Vous devez être contributeur du projet pour créer un commentaire.')
-
-        serializer.save(author=author)
 
     def perform_update(self, serializer):
         comment = self.get_object()

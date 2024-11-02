@@ -16,12 +16,11 @@ class UserManager(BaseUserManager):
 
         try:
             if 'age' not in extra_fields:
-                raise ValueError('L\'âge minimum est de 16 ans insiste pas! MDR')
+                raise ValueError("Le champ age est obligatoire")
             validate_age(extra_fields['age'])
             user = self.model(username=username, **extra_fields)
             user.set_password(password)
             user.save(using=self._db)
-            #user.save()
             return user
         except IntegrityError as e:
             raise ValueError("Ce nom d\'utilisateur est déja pris.")

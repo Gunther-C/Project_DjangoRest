@@ -17,17 +17,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             'can_data_be_shared': {'label': 'Les données peuvent être partagées'}
         }
 
-    def create(self, validated_data):
-        user = User(
-            username=validated_data['username'],
-            age=validated_data['age'],
-            can_be_contacted=validated_data['can_be_contacted'],
-            can_data_be_shared=validated_data['can_data_be_shared']
-        )
-        user.set_password(validated_data['password'])
-        user.save()
-        return user
-
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=50)
