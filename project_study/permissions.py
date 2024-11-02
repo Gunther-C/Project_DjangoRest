@@ -22,3 +22,13 @@ class IsContributor(BasePermission):
         return Contributor.objects.filter(user=request.user, project=obj, role='contributor').exists()
 
 
+class IsContributorOrAuthor(BasePermission):
+
+    """def has_permission(self, request, view):
+        return Contributor.objects.filter(user=request.user, project=obj, role='contributor').exists()"""
+
+    def has_object_permission(self, request, view, obj):
+        if request.method == 'PATCH' or request.method == 'DELETE':
+            return Contributor.objects.filter(user=request.user, project=obj, role='author').exists()
+
+

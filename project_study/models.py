@@ -34,9 +34,9 @@ class Issue(models.Model):
     title = models.CharField(max_length=150)
     description = models.TextField()
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='issue_project')
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='issue_author')
+    author = models.ForeignKey(Contributor, on_delete=models.CASCADE, related_name='issue_author')
 
-    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+    assigned_to = models.ForeignKey(Contributor, on_delete=models.CASCADE,
                                     related_name='issue_assigned', null=True, blank=True)
 
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='LOW')
@@ -53,7 +53,7 @@ class Comment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     description = models.TextField()
     issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name="comment_issue")
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="comment_author")
+    author = models.ForeignKey(Contributor, on_delete=models.CASCADE, related_name="comment_author")
     created_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

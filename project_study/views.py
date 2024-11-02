@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from .models import Project, Contributor, Issue, Comment
 from .serializers import ProjectSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
-from .permissions import IsAuthorOrReadOnly, IsContributor, IsAuthor
+from .permissions import IsAuthorOrReadOnly, IsContributor, IsAuthor, IsContributorOrAuthor
 
 User = get_user_model()
 
@@ -89,34 +89,35 @@ class IssueViewSet(ModelViewSet):
     def perform_create(self, serializer):
         assigned_to = serializer.validated_data.get('assigned_to')
         project = serializer.validated_data.get('project')
+        author = Contributor.objects.get(project=project, user=self.request.user)
 
         if not Contributor.objects.filter(project=project, user=self.request.user).exists():
             raise ValidationError('Vous devez être contributeur du projet pour créer une issue.')
 
-        if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to).exists():
+        if assigned_to and not Contributor.objects.filter(project=project, id=assigned_to.id).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
 
-        serializer.save(author=self.request.user)
+        serializer.save(author=author)
 
     def perform_update(self, serializer):
         issue = self.get_object()
         assigned_to = serializer.validated_data.get('assigned_to')
         project = serializer.validated_data.get('project')
 
-        if self.request.user != issue.author:
+        if self.request.user != issue.author.user:
             raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à modifier cette issue."})
 
         if not Contributor.objects.filter(project=project, user=self.request.user).exists():
             raise ValidationError('Vous devez être contributeur du projet pour modifier une issue.')
 
-        if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to).exists():
+        if assigned_to and not Contributor.objects.filter(project=project, id=assigned_to.id).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
 
         serializer.save()
 
     def perform_destroy(self, instance):
         issue = self.get_object()
-        if self.request.user != issue.author:
+        if self.request.user != issue.author.user:
             raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer cette issue."})
         instance.delete()
 
@@ -127,19 +128,23 @@ class CommentViewSet(ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        # import ipdb; ipdb.set_trace()
         return Comment.objects.filter(issue__project__contributor_project__user=self.request.user)
 
     def perform_create(self, serializer):
         issue = serializer.validated_data.get('issue')
+        author = Contributor.objects.get(project=project, user=self.request.user)
+
         if not Contributor.objects.filter(project=issue.project, user=self.request.user).exists():
             raise ValidationError('Vous devez être contributeur du projet pour créer un commentaire.')
-        serializer.save(author=self.request.user)
+
+        serializer.save(author=author)
 
     def perform_update(self, serializer):
         comment = self.get_object()
         issue = serializer.validated_data.get('issue')
 
-        if self.request.user != comment.author:
+        if self.request.user != comment.author.user:
             raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à modifier ce commentaire."})
 
         if not Contributor.objects.filter(project=issue.project, user=self.request.user).exists():
@@ -149,6 +154,6 @@ class CommentViewSet(ModelViewSet):
 
     def perform_destroy(self, instance):
         comment = self.get_object()
-        if self.request.user != comment.author:
+        if self.request.user != comment.author.user:
             raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer ce commentaire."})
         instance.delete()
