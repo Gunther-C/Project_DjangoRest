@@ -8,46 +8,53 @@ from rest_framework.response import Response
 
 from .models import Project, Contributor, Issue, Comment
 from .serializers import ProjectSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
-from .permissions import IsAuthorOrReadOnly, IsContributor, IsAuthor, IsContributorOrAuthor
+from .permissions import IsAuthorProject, IsAuthorOrReadOnly, IsContributor, IsAuthor, IsContributorOrAuthor
 
 User = get_user_model()
 
 
 class ProjectViewSet(ModelViewSet):
-    queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAuthorProject]
 
     def get_queryset(self):
-        return Project.objects.filter(contributor_project__user=self.request.user)
+        queryset = Project.objects.all()
+        query_author = self.request.query_params.get("author_only", False).lower() == 'true'
+        query_contributor = self.request.query_params.get("contributor_only", False).lower() == 'true'
+
+        if query_author:
+            queryset = queryset.filter(author=self.request.user)
+
+        if query_contributor:
+            queryset = queryset.filter(contributor_project__user=self.request.user,
+                                       contributor_project__role='contributor')
+        return queryset
 
     def perform_create(self, serializer):
         project = serializer.save(author=self.request.user)
         Contributor.objects.create(user=self.request.user, project=project, role='author')
 
-    def perform_update(self, serializer):
+    @action(detail=True, methods=['post'])
+    def add_contributor(self, request, pk):
         project = self.get_object()
-        if self.request.user != project.author:
-            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à modifier ce projet."})
-        serializer.save()
+        contributor, created = Contributor.objects.get_or_create(user=self.request.user, project=project,
+                                                                 role='contributor')
+        if created:
+            return Response({'detail': "Vous êtes maintenant contributeur du projet"},
+                            status=status.HTTP_201_CREATED)
+        return Response({'detail': "Vous êtes déja contributeur de ce projet."},
+                        status=status.HTTP_400_BAD_REQUEST)
 
-    def perform_destroy(self, instance):
-        project = self.get_object()
-        if self.request.user != project.author:
-            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer ce projet."})
-        instance.delete()
-
-    @action(detail=True, methods=['delete'],  permission_classes=[permissions.IsAuthenticated, IsContributor])
+    @action(detail=True, methods=['delete'])
     def del_contributor(self, request, pk):
         project = self.get_object()
-
         try:
             contributor = Contributor.objects.get(user=self.request.user, project=project)
             contributor.delete()
             return Response({'detail': "Vous n'êtes plus contributeur du projet"}, status=status.HTTP_201_CREATED)
 
         except Contributor.DoesNotExist:
-            raise ValidationError({"detail": "Vous n'êtes pas contributeur de ce projet."})
+            raise NotFound({"Detail": "Aucun projet trouvé !"})
 
 
 class ContributorViewSet(ModelViewSet):

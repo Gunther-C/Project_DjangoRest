@@ -3,7 +3,7 @@ from .models import Project, Contributor, Issue, Comment
 
 
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'author', 'type', 'created_date')
+    list_display = ('id', 'name', 'description', 'author', 'type', 'created_date')
     list_filter = ('type', 'created_date')
     fieldsets = (
         ('Projet', {'fields': ('project',)}),

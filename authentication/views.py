@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import RegisterSerializer, LoginSerializer
+from .permissions import IsUser
 
 User = get_user_model()
 
@@ -45,28 +46,39 @@ class LoginApiView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-"""class UserProfileViewSet(ModelViewSet):
+class UserProfileViewSet(ModelViewSet):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsUser]
+
+    def get_queryset(self):
+        return User.objects.filter(pk=self.request.user.id)
 
     def get_object(self):
         return self.request.user
 
-    @action(detail=False, methods=['patch'])
+    @action(detail=False, methods=['patch'], permission_classes=[permissions.IsAuthenticated, IsUser])
     def update_profile(self, request):
-        serializer = RegisterSerializer(request.user, data=request.data, partial=True)
+        user = self.get_object()
+        self.check_object_permissions(request, user)
+        serializer = self.get_serializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def perform_update(self, serializer):
+    @action(detail=False, methods=['delete'], permission_classes=[permissions.IsAuthenticated, IsUser])
+    def delete_profile(self, request):
         user = self.get_object()
-        return serializer.save(user)"""
+        self.check_object_permissions(request, user)
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class UserProfileViewSet(ViewSet):
+
+
+
+"""class UserProfileViewSet(ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def retrieve(self, request):
@@ -80,7 +92,7 @@ class UserProfileViewSet(ViewSet):
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)"""
 
 
 
