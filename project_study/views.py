@@ -14,7 +14,17 @@ from .permissions import IsAuthorOrContributor, IsAuthorProject, IsAuthorIssue, 
 
 User = get_user_model()
 
+"""
+ProjectViewSet(ModelViewSet)
 
+Filtre: Un projet
+Filtre: Tous les projets
+Filtre: Tous les projets de l'utilisateur connecté
+Filtre: Tous les projets dont l'utilisateur connecté est contributeur
+
+Option: L'utilisateur peut adhérer (contributeur) a un projet
+Option: L'utilisateur peut se retirer (contributeur) d'un projet
+"""
 class ProjectViewSet(ModelViewSet):
     serializer_class = ProjectSerializer
     permission_classes = [permissions.IsAuthenticated, IsAuthorOrContributor]
@@ -59,19 +69,45 @@ class ProjectViewSet(ModelViewSet):
             raise NotFound({"Detail": "Aucun projet trouvé !"})
 
 
+"""
+ContributorViewSet(ModelViewSet)
+
+Filtre: Tous les contributeurs des projets de l'utilisateur connecté
+Filtre: Un contributeur d'un projet (l'utilisateur connecté est auteur ou contributeur)
+Filtre: Tous les contributeurs d'un projet (l'utilisateur connecté est auteur ou contributeur)
+"""
 class ContributorViewSet(ModelViewSet):
 
     serializer_class = ContributorSerializer
     permission_classes = [permissions.IsAuthenticated, IsAuthorProject]
 
-    def get_queryset(self):
+    """def get_queryset(self):
         queryset = Contributor.objects.filter(project__author=self.request.user, role='contributor')
         project_id = self.request.query_params.get('project_id')
         if project_id:
             queryset = queryset.filter(project__id=project_id)
             if not queryset.exists():
                 raise NotFound({"Detail": "Aucun projet trouvé !"})
+        return queryset"""
+    def get_queryset(self):
+        queryset = Contributor.objects.all()
+        project_id = self.request.query_params.get('project_id')
+        query_author = self.request.query_params.get("author_only")
+        """query_contributor = self.request.query_params.get("contributor_only", "false").lower() == 'true'"""
+
+        if project_id:
+            """Tous les contributeurs d'un projet"""
+            queryset = queryset.filter(project__id=project_id)
+
+        if query_author:
+            """ Tous les contributeurs des projets de l'utilisateur connecté """
+            queryset = Contributor.objects.filter(project__author=self.request.user, role='contributor')
+
         return queryset
+
+
+
+
 
     def perform_create(self, serializer):
         project_id = self.request.data.get('project')
@@ -91,6 +127,13 @@ class ContributorViewSet(ModelViewSet):
         serializer.save(user=user, project=project, role='contributor')
 
 
+"""
+IssueViewSet(ModelViewSet)
+
+Filtre: Tous les issues de l'utilisateur connecté
+Filtre: Une issue d'un projet (l'utilisateur connecté est auteur un contributeur)
+Filtre: Tous les issues d'un projet (l'utilisateur connecté est auteur un contributeur)
+"""
 class IssueViewSet(ModelViewSet):
     queryset = Issue.objects.all()
     serializer_class = IssueSerializer
@@ -103,6 +146,7 @@ class IssueViewSet(ModelViewSet):
         assigned_to = serializer.validated_data.get('assigned_to')
         project = serializer.validated_data.get('project')
         author = get_object_or_404(Contributor, project=project, user=self.request.user)
+
         if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to.user).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
         serializer.save(author=author)
@@ -110,11 +154,22 @@ class IssueViewSet(ModelViewSet):
     def perform_update(self, serializer):
         assigned_to = serializer.validated_data.get('assigned_to')
         project = serializer.validated_data.get('project')
+
         if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to.user).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
+
+        if not Contributor.objects.filter(project=project, user=self.request.user).exists():
+            raise ValidationError("Vous n'êtes pas contributeur de ce projet.")
         serializer.save()
 
 
+"""
+CommentViewSet(ModelViewSet)
+
+Filtre: Tous les comments de l'utilisateur connecté
+Filtre: Un comment (l'utilisateur connecté est auteur ou contributeur)
+Filtre: Tous les comments d'une issue (l'utilisateur connecté est auteur ou contributeur)
+"""
 class CommentViewSet(ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
