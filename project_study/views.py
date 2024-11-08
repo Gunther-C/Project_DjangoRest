@@ -1,4 +1,6 @@
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+
 from rest_framework import status, permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError, NotFound
 from rest_framework.decorators import action
@@ -8,19 +10,19 @@ from rest_framework.response import Response
 
 from .models import Project, Contributor, Issue, Comment
 from .serializers import ProjectSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
-from .permissions import IsAuthorProject, IsAuthorOrReadOnly, IsContributor, IsAuthor, IsContributorOrAuthor
+from .permissions import IsAuthorOrContributor, IsAuthorProject, IsAuthorIssue, IsAuthorComment
 
 User = get_user_model()
 
 
 class ProjectViewSet(ModelViewSet):
     serializer_class = ProjectSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAuthorProject]
+    permission_classes = [permissions.IsAuthenticated, IsAuthorOrContributor]
 
     def get_queryset(self):
         queryset = Project.objects.all()
-        query_author = self.request.query_params.get("author_only", False).lower() == 'true'
-        query_contributor = self.request.query_params.get("contributor_only", False).lower() == 'true'
+        query_author = self.request.query_params.get("author_only", "false").lower() == 'true'
+        query_contributor = self.request.query_params.get("contributor_only", "false").lower() == 'true'
 
         if query_author:
             queryset = queryset.filter(author=self.request.user)
@@ -58,12 +60,18 @@ class ProjectViewSet(ModelViewSet):
 
 
 class ContributorViewSet(ModelViewSet):
-    queryset = Contributor.objects.all()
+
     serializer_class = ContributorSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAuthorProject]
 
     def get_queryset(self):
-        return Contributor.objects.filter(project__author=self.request.user, role='contributor')
+        queryset = Contributor.objects.filter(project__author=self.request.user, role='contributor')
+        project_id = self.request.query_params.get('project_id')
+        if project_id:
+            queryset = queryset.filter(project__id=project_id)
+            if not queryset.exists():
+                raise NotFound({"Detail": "Aucun projet trouvé !"})
+        return queryset
 
     def perform_create(self, serializer):
         project_id = self.request.data.get('project')
@@ -71,13 +79,11 @@ class ContributorViewSet(ModelViewSet):
 
         project = Project.objects.get(pk=project_id)
         user = User.objects.get(pk=user_id)
+        self.check_object_permissions(self.request, project)
         contributor = Contributor.objects.filter(user=user, project=project, role='contributor').exists()
 
         if contributor:
             raise ValidationError({"detail": "Cette utilisateur est déja contributeur de ce projet."})
-
-        if project.author != self.request.user:
-            raise PermissionDenied({"detail": "Vous n'êtes pas l'auteur de ce projet"})
 
         if user == self.request.user:
             raise PermissionDenied({"detail": "Vous êtes déja l'auteur de ce projet"})
@@ -88,7 +94,7 @@ class ContributorViewSet(ModelViewSet):
 class IssueViewSet(ModelViewSet):
     queryset = Issue.objects.all()
     serializer_class = IssueSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAuthorIssue]
 
     def get_queryset(self):
         return Issue.objects.filter(project__contributor_project__user=self.request.user)
@@ -96,46 +102,23 @@ class IssueViewSet(ModelViewSet):
     def perform_create(self, serializer):
         assigned_to = serializer.validated_data.get('assigned_to')
         project = serializer.validated_data.get('project')
-        author = get_object_or_404(Contributor, pk=self.request.user.id)
-
-        try:
-            author = Contributor.objects.get(project=project, user=self.request.user)
-
-            if assigned_to and not Contributor.objects.filter(project=project, id=assigned_to.id).exists():
-                raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
-
-            serializer.save(author=author)
-
-        except Contributor.DoesNotExist:
-            raise ValidationError('Vous devez être contributeur du projet pour créer une issue.')
+        author = get_object_or_404(Contributor, project=project, user=self.request.user)
+        if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to.user).exists():
+            raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
+        serializer.save(author=author)
 
     def perform_update(self, serializer):
-        issue = self.get_object()
         assigned_to = serializer.validated_data.get('assigned_to')
         project = serializer.validated_data.get('project')
-
-        if self.request.user != issue.author.user:
-            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à modifier cette issue."})
-
-        if not Contributor.objects.filter(project=project, user=self.request.user).exists():
-            raise ValidationError('Vous devez être contributeur du projet pour modifier une issue.')
-
-        if assigned_to and not Contributor.objects.filter(project=project, id=assigned_to.id).exists():
+        if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to.user).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
-
         serializer.save()
-
-    def perform_destroy(self, instance):
-        issue = self.get_object()
-        if self.request.user != issue.author.user:
-            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer cette issue."})
-        instance.delete()
 
 
 class CommentViewSet(ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAuthorComment]
 
     def get_queryset(self):
         # import ipdb; ipdb.set_trace()
@@ -143,14 +126,16 @@ class CommentViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         issue = serializer.validated_data.get('issue')
-        try:
+        author = get_object_or_404(Contributor, project=issue.project, user=self.request.user)
+        serializer.save(author=author)
+        """try:
             author = Contributor.objects.get(project=issue.project, user=self.request.user)
             serializer.save(author=author)
 
         except Contributor.DoesNotExist:
-            raise ValidationError('Vous devez être contributeur du projet pour créer un commentaire.')
+            raise ValidationError('Vous devez être contributeur du projet pour créer un commentaire.')"""
 
-    def perform_update(self, serializer):
+    """def perform_update(self, serializer):
         comment = self.get_object()
         issue = serializer.validated_data.get('issue')
 
@@ -166,4 +151,4 @@ class CommentViewSet(ModelViewSet):
         comment = self.get_object()
         if self.request.user != comment.author.user:
             raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer ce commentaire."})
-        instance.delete()
+        instance.delete()"""
