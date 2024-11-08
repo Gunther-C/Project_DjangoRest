@@ -38,7 +38,6 @@ class IsAuthorComment(BasePermission):
     def has_object_permission(self, request, view, obj):
 
         if view.action in ['create']:
-            """Que issue exist et que user est contributeur"""
             return Contributor.objects.filter(project=obj.issue.project, user=self.request.user).exists()
         return obj.author.user == request.user
 

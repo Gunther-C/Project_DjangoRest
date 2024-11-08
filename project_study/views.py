@@ -128,27 +128,10 @@ class CommentViewSet(ModelViewSet):
         issue = serializer.validated_data.get('issue')
         author = get_object_or_404(Contributor, project=issue.project, user=self.request.user)
         serializer.save(author=author)
-        """try:
-            author = Contributor.objects.get(project=issue.project, user=self.request.user)
-            serializer.save(author=author)
 
-        except Contributor.DoesNotExist:
-            raise ValidationError('Vous devez être contributeur du projet pour créer un commentaire.')"""
-
-    """def perform_update(self, serializer):
-        comment = self.get_object()
+    def perform_update(self, serializer):
         issue = serializer.validated_data.get('issue')
-
-        if self.request.user != comment.author.user:
-            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à modifier ce commentaire."})
-
         if not Contributor.objects.filter(project=issue.project, user=self.request.user).exists():
-            raise ValidationError('Vous devez être contributeur du projet pour modifier ce commentaire.')
-
+            raise ValidationError("Cette issue ne fait pas partie d'un projet dont vous êtes contributeur.")
         serializer.save()
 
-    def perform_destroy(self, instance):
-        comment = self.get_object()
-        if self.request.user != comment.author.user:
-            raise PermissionDenied({"detail": "Vous n'êtes pas autorisé à supprimer ce commentaire."})
-        instance.delete()"""
