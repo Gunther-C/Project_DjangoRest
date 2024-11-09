@@ -14,33 +14,31 @@ from .permissions import IsAuthorOrContributor, IsAuthorProject, IsAuthorIssue, 
 
 User = get_user_model()
 
-"""
-ProjectViewSet(ModelViewSet)
 
-Filtre: Un projet
-Filtre: Tous les projets
-Filtre: Tous les projets de l'utilisateur connecté
-Filtre: Tous les projets dont l'utilisateur connecté est contributeur
-
-Option: L'utilisateur peut adhérer (contributeur) a un projet
-Option: L'utilisateur peut se retirer (contributeur) d'un projet
-"""
 class ProjectViewSet(ModelViewSet):
+    """
+    Filtre: Un projet
+    Filtre: Tous les projets
+    Filtre: Tous les projets de l'utilisateur connecté
+    Filtre: Tous les projets dont l'utilisateur connecté est contributeur
+
+    Option: L'utilisateur peut adhérer (contributeur) a un projet
+    Option: L'utilisateur peut se retirer (contributeur) d'un projet
+    """
+    queryset = Project.objects.all()
     serializer_class = ProjectSerializer
     permission_classes = [permissions.IsAuthenticated, IsAuthorOrContributor]
 
     def get_queryset(self):
-        queryset = Project.objects.all()
         query_author = self.request.query_params.get("author_only", "false").lower() == 'true'
         query_contributor = self.request.query_params.get("contributor_only", "false").lower() == 'true'
 
         if query_author:
-            queryset = queryset.filter(author=self.request.user)
-
+            return self.queryset.filter(author=self.request.user)
         if query_contributor:
-            queryset = queryset.filter(contributor_project__user=self.request.user,
-                                       contributor_project__role='contributor')
-        return queryset
+            return self.queryset.filter(contributor_project__user=self.request.user,
+                                        contributor_project__role='contributor')
+        return self.queryset
 
     def perform_create(self, serializer):
         project = serializer.save(author=self.request.user)
@@ -77,7 +75,7 @@ Filtre: Un contributeur d'un projet (l'utilisateur connecté est auteur ou contr
 Filtre: Tous les contributeurs d'un projet (l'utilisateur connecté est auteur ou contributeur)
 """
 class ContributorViewSet(ModelViewSet):
-
+    queryset = Contributor.objects.all()
     serializer_class = ContributorSerializer
     permission_classes = [permissions.IsAuthenticated, IsAuthorProject]
 
@@ -90,22 +88,20 @@ class ContributorViewSet(ModelViewSet):
                 raise NotFound({"Detail": "Aucun projet trouvé !"})
         return queryset"""
     def get_queryset(self):
-        queryset = Contributor.objects.all()
         project_id = self.request.query_params.get('project_id')
-        query_author = self.request.query_params.get("author_only")
-        """query_contributor = self.request.query_params.get("contributor_only", "false").lower() == 'true'"""
+        query_author = self.request.query_params.get("author_only", "false").lower() == 'true'
+        query_contributor = self.request.query_params.get("contributor_only", "false").lower() == 'true'
 
         if project_id:
-            """Tous les contributeurs d'un projet"""
-            queryset = queryset.filter(project__id=project_id)
+            return self.queryset.filter(project__id=project_id)
+
 
         if query_author:
-            """ Tous les contributeurs des projets de l'utilisateur connecté """
-            queryset = Contributor.objects.filter(project__author=self.request.user, role='contributor')
-
-        return queryset
-
-
+            return self.queryset.filter(project__author=self.request.user)
+        if query_contributor:
+            return self.queryset.filter(contributor_project__user=self.request.user,
+                                        contributor_project__role='contributor')
+        return self.queryset
 
 
 

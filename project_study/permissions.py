@@ -1,9 +1,21 @@
 from rest_framework import permissions
 from rest_framework.permissions import BasePermission
+from rest_framework.exceptions import PermissionDenied, ValidationError, NotFound
 from .models import Contributor, Project, Issue
 
 
 class IsAuthorOrContributor(BasePermission):
+    def has_permission(self, request, view):
+        query_params = request.query_params
+        for params in query_params:
+            if params != 'author_only' and params != 'contributor_only':
+                # raise ValidationError({"Detail": "Ce paramètre n'éxiste pas !"})
+                return False
+            if query_params.get(params) != 'true' and query_params.get(params) != 'false':
+                # raise ValidationError({"Detail": "La valeur du paramètre additionnel doit être `true` ou `false` !"})
+                return False
+        return True
+
     def has_object_permission(self, request, view, obj):
         is_author = Contributor.objects.filter(user=request.user, project=obj, role='author').exists()
         if view.action in ['add_contributor', 'del_contributor']:
