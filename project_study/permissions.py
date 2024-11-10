@@ -28,21 +28,39 @@ class IsAuthorOrContributor(BasePermission):
 class IsAuthorProject(BasePermission):
     def has_permission(self, request, view):
         project_id = request.query_params.get('project_id')
-        query_author = request.query_params.get('author_only')
+        author_only = request.query_params.get('author_only')
 
         if project_id:
-            _id = project_id.isdigit()
-            if not _id:
+            if not project_id.isdigit():
                 return False
             return Contributor.objects.filter(project__id=project_id, user=request.user).exists()
 
-        elif query_author:
+        if author_only:
+            if 'author_only' not in request.query_params:
+                return False
+            if author_only != 'true' and author_only != 'false':
+                return False
             return Contributor.objects.filter(project__author=request.user, role='contributor').exists()
 
+        return True
+
     def has_object_permission(self, request, view, obj):
+
+        """
+        if view.action in ['create']:
+            project = request.data.get('project')
+            return Contributor.objects.filter(project__author=request.user, project__id=project).exists()
+
+
+        METTRE UNE CONDITION POUR QUE ID DIRECT DANS URL contributor/id/ SOIT UNE CONTRIBUTION DE L'UTILISATEUR
+        """
+
+        return obj.project.author == request.user
+
+    """def has_object_permission(self, request, view, obj):
         if view.action in ['create']:
             return obj.author == request.user
-        return obj.project.author == request.user
+        return obj.project.author == request.user"""
 
 
 class IsAuthorIssue(BasePermission):

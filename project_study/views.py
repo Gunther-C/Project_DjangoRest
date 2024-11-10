@@ -17,13 +17,13 @@ User = get_user_model()
 
 class ProjectViewSet(ModelViewSet):
     """
-    Filtre: Un projet
-    Filtre: Tous les projets
-    Filtre: Tous les projets de l'utilisateur connecté
-    Filtre: Tous les projets dont l'utilisateur connecté est contributeur
+    Filter : Un projet
+    Filter : Tous les projets
+    Filter : Tous les projets de l'utilisateur connecté
+    Filter : Tous les projets dont l'utilisateur connecté est contributeur
 
-    Option: L'utilisateur peut adhérer (contributeur) a un projet
-    Option: L'utilisateur peut se retirer (contributeur) d'un projet
+    Option : L'utilisateur peut adhérer (contributeur) a un projet
+    Option : L'utilisateur peut se retirer (contributeur) d'un projet
     """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
@@ -67,43 +67,26 @@ class ProjectViewSet(ModelViewSet):
             raise NotFound({"Detail": "Aucun projet trouvé !"})
 
 
-"""
-ContributorViewSet(ModelViewSet)
 
-Filtre: Tous les contributeurs des projets de l'utilisateur connecté
-Filtre: Un contributeur d'un projet (l'utilisateur connecté est auteur ou contributeur)
-Filtre: Tous les contributeurs d'un projet (l'utilisateur connecté est auteur ou contributeur)
-"""
 class ContributorViewSet(ModelViewSet):
+    """
+    Filter : Tous les contributeurs d'un projet (l'utilisateur connecté est auteur ou contributeur)
+    Filter : Tous les contributeurs des projets de l'utilisateur connecté
+    Filter : Toutes les contributions de l'utilisateur connecté
+    """
     queryset = Contributor.objects.all()
     serializer_class = ContributorSerializer
     permission_classes = [permissions.IsAuthenticated, IsAuthorProject]
 
-    """def get_queryset(self):
-        queryset = Contributor.objects.filter(project__author=self.request.user, role='contributor')
-        project_id = self.request.query_params.get('project_id')
-        if project_id:
-            queryset = queryset.filter(project__id=project_id)
-            if not queryset.exists():
-                raise NotFound({"Detail": "Aucun projet trouvé !"})
-        return queryset"""
     def get_queryset(self):
         project_id = self.request.query_params.get('project_id')
         query_author = self.request.query_params.get("author_only", "false").lower() == 'true'
-        query_contributor = self.request.query_params.get("contributor_only", "false").lower() == 'true'
 
         if project_id:
             return self.queryset.filter(project__id=project_id)
-
-
         if query_author:
-            return self.queryset.filter(project__author=self.request.user)
-        if query_contributor:
-            return self.queryset.filter(contributor_project__user=self.request.user,
-                                        contributor_project__role='contributor')
-        return self.queryset
-
-
+            return self.queryset.filter(project__author=self.request.user, role='contributor')
+        return self.queryset.filter(user=self.request.user, role='contributor')
 
     def perform_create(self, serializer):
         project_id = self.request.data.get('project')
@@ -111,10 +94,10 @@ class ContributorViewSet(ModelViewSet):
 
         project = Project.objects.get(pk=project_id)
         user = User.objects.get(pk=user_id)
-        self.check_object_permissions(self.request, project)
-        contributor = Contributor.objects.filter(user=user, project=project, role='contributor').exists()
 
-        if contributor:
+        # self.check_object_permissions(self.request, project)
+
+        if Contributor.objects.filter(user=user, project=project, role='contributor').exists():
             raise ValidationError({"detail": "Cette utilisateur est déja contributeur de ce projet."})
 
         if user == self.request.user:
