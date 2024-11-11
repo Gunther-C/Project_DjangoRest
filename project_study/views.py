@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from .models import Project, Contributor, Issue, Comment
 from .serializers import ProjectSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
-from .permissions import IsAuthorOrContributor, IsAuthorProject, IsAuthorIssue, IsAuthorComment
+from .permissions import IsProjects, IsContributors, IsIssue, IsComment
 
 User = get_user_model()
 
@@ -27,7 +27,7 @@ class ProjectViewSet(ModelViewSet):
     """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAuthorOrContributor]
+    permission_classes = [permissions.IsAuthenticated, IsProjects]
 
     def get_queryset(self):
         query_author = self.request.query_params.get("author_only", "false").lower() == 'true'
@@ -67,16 +67,16 @@ class ProjectViewSet(ModelViewSet):
             raise NotFound({"Detail": "Aucun projet trouvé !"})
 
 
-
 class ContributorViewSet(ModelViewSet):
     """
+    Filter : Une contribution de l'utilisateur connecté
+    Filter : Toutes les contributions de l'utilisateur connecté
     Filter : Tous les contributeurs d'un projet (l'utilisateur connecté est auteur ou contributeur)
     Filter : Tous les contributeurs des projets de l'utilisateur connecté
-    Filter : Toutes les contributions de l'utilisateur connecté
     """
     queryset = Contributor.objects.all()
     serializer_class = ContributorSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAuthorProject]
+    permission_classes = [permissions.IsAuthenticated, IsContributors]
 
     def get_queryset(self):
         project_id = self.request.query_params.get('project_id')
@@ -89,13 +89,10 @@ class ContributorViewSet(ModelViewSet):
         return self.queryset.filter(user=self.request.user, role='contributor')
 
     def perform_create(self, serializer):
-        project_id = self.request.data.get('project')
-        user_id = self.request.data.get('user')
+        project = serializer.validated_data.get('project')
+        user = serializer.validated_data.get('user')
 
-        project = Project.objects.get(pk=project_id)
-        user = User.objects.get(pk=user_id)
-
-        # self.check_object_permissions(self.request, project)
+        self.check_object_permissions(self.request, project)
 
         if Contributor.objects.filter(user=user, project=project, role='contributor').exists():
             raise ValidationError({"detail": "Cette utilisateur est déja contributeur de ce projet."})
@@ -106,20 +103,21 @@ class ContributorViewSet(ModelViewSet):
         serializer.save(user=user, project=project, role='contributor')
 
 
-"""
-IssueViewSet(ModelViewSet)
-
-Filtre: Tous les issues de l'utilisateur connecté
-Filtre: Une issue d'un projet (l'utilisateur connecté est auteur un contributeur)
-Filtre: Tous les issues d'un projet (l'utilisateur connecté est auteur un contributeur)
-"""
 class IssueViewSet(ModelViewSet):
+    """
+    Filter : Toutes les issues de l'utilisateur connecté
+    Filter : Une issue d'un projet (l'utilisateur connecté est auteur ou contributeur)
+    Filter : Toutes les issues d'un projet (l'utilisateur connecté est auteur ou contributeur)
+    """
     queryset = Issue.objects.all()
     serializer_class = IssueSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAuthorIssue]
+    permission_classes = [permissions.IsAuthenticated, IsIssue]
 
     def get_queryset(self):
-        return Issue.objects.filter(project__contributor_project__user=self.request.user)
+        project_id = self.request.query_params.get('project_id')
+        if project_id:
+            return self.queryset.filter(project__id=project_id)
+        return self.queryset.filter(project__contributor_project__user=self.request.user)
 
     def perform_create(self, serializer):
         assigned_to = serializer.validated_data.get('assigned_to')
@@ -136,27 +134,24 @@ class IssueViewSet(ModelViewSet):
 
         if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to.user).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
-
-        if not Contributor.objects.filter(project=project, user=self.request.user).exists():
-            raise ValidationError("Vous n'êtes pas contributeur de ce projet.")
         serializer.save()
 
 
-"""
-CommentViewSet(ModelViewSet)
-
-Filtre: Tous les comments de l'utilisateur connecté
-Filtre: Un comment (l'utilisateur connecté est auteur ou contributeur)
-Filtre: Tous les comments d'une issue (l'utilisateur connecté est auteur ou contributeur)
-"""
 class CommentViewSet(ModelViewSet):
+    """
+    Filter : Tous les comments de l'utilisateur connecté
+    Filter : Un comment (l'utilisateur connecté est auteur ou contributeur)
+    Filter : Tous les comments d'une issue (l'utilisateur connecté est auteur ou contributeur)
+    """
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAuthorComment]
+    permission_classes = [permissions.IsAuthenticated, IsComment]
 
     def get_queryset(self):
-        # import ipdb; ipdb.set_trace()
-        return Comment.objects.filter(issue__project__contributor_project__user=self.request.user)
+        issue_id = self.request.query_params.get('issue_id')
+        if issue_id:
+            return self.queryset.filter(issue__id=issue_id)
+        return self.queryset.filter(author__user=self.request.user)
 
     def perform_create(self, serializer):
         issue = serializer.validated_data.get('issue')
