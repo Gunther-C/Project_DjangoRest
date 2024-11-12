@@ -33,8 +33,8 @@ class ContributorSerializer(serializers.ModelSerializer):
 class IssueSerializer(serializers.ModelSerializer):
     class Meta:
         model = Issue
-        fields = ['id', 'title', 'description', 'project', 'author', 'assigned_to', 'priority',
-                  'tag', 'status', 'created_date']
+        fields = ['id', 'title', 'description', 'project', 'author', 'assigned_to', 'priority', 'tag', 'status',
+                  'created_date']
         read_only_fields = ['author']
 
     def to_representation(self, instance):
