@@ -120,19 +120,23 @@ class IssueViewSet(ModelViewSet):
         return self.queryset.filter(project__contributor_project__user=self.request.user)
 
     def perform_create(self, serializer):
-        assigned_to = serializer.validated_data.get('assigned_to')
+        # assigned_to = serializer.validated_data.get('assigned_to')
+        assigned_to = self.request.data.get('assigned_to')
         project = serializer.validated_data.get('project')
-        author = get_object_or_404(Contributor, project=project, user=self.request.user)
+        # author = get_object_or_404(Contributor, project=project, user=self.request.user)
+        author = get_object_or_404(Contributor, project=project, pk=self.request.user.id)
 
-        if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to.user).exists():
+        # if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to.user).exists():
+        if assigned_to and not Contributor.objects.filter(project=project, pk=assigned_to).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
         serializer.save(author=author)
 
     def perform_update(self, serializer):
-        assigned_to = serializer.validated_data.get('assigned_to')
+        # assigned_to = serializer.validated_data.get('assigned_to')
+        assigned_to = self.request.data.get('assigned_to')
         project = serializer.validated_data.get('project')
 
-        if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to.user).exists():
+        if assigned_to and not Contributor.objects.filter(project=project, pk=assigned_to).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
         serializer.save()
 
@@ -155,7 +159,8 @@ class CommentViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         issue = serializer.validated_data.get('issue')
-        author = get_object_or_404(Contributor, project=issue.project, user=self.request.user)
+        # author = get_object_or_404(Contributor, project=issue.project, user=self.request.user)
+        author = get_object_or_404(Contributor, project=issue.project, pk=self.request.user.id)
         serializer.save(author=author)
 
     def perform_update(self, serializer):
