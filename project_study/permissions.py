@@ -64,7 +64,8 @@ class IsIssue(BasePermission):
             project_id = query_params.get(params)
             if not project_id.isdigit():
                 return False
-            return Issue.objects.filter(project__id=project_id, project__contributor_project__user=request.user).exists()
+            return Issue.objects.filter(project__id=project_id,
+                                        project__contributor_project__user=request.user).exists()
         return Issue.objects.filter(project__contributor_project__user=request.user).exists()
 
     def has_object_permission(self, request, view, obj):

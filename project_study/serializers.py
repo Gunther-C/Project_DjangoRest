@@ -11,13 +11,23 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'type', 'author', 'created_date']
         read_only_fields = ['author']
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['author'] = instance.author.username
+        return ret
+
 
 class ContributorSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Contributor
         fields = ['id', 'project', 'user', 'role', 'created_date']
         read_only_fields = ['role']
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['project'] = instance.project.name
+        ret['user'] = instance.user.username
+        return ret
 
 
 class IssueSerializer(serializers.ModelSerializer):
@@ -27,9 +37,33 @@ class IssueSerializer(serializers.ModelSerializer):
                   'tag', 'status', 'created_date']
         read_only_fields = ['author']
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['project'] = instance.project.name
+        ret['author'] = instance.author.user.username
+        ret['assigned_to'] = {
+            "name": instance.assigned_to.user.username,
+            "role": instance.assigned_to.role
+        } if instance.assigned_to else None
+        return ret
+
 
 class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ['id', 'description', 'issue', 'author', 'created_date']
+        fields = ['id', 'author', 'description', 'issue', 'created_date']
         read_only_fields = ['id', 'author', 'created_date']
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['author'] = instance.author.user.username
+        ret['issue'] = {
+            "author": instance.issue.author.user.username,
+            "projet": instance.issue.project.name,
+            "title": instance.issue.title,
+            "priority": instance.issue.priority,
+            "tag": instance.issue.tag,
+            "status": instance.issue.status,
+            "date": instance.issue.created_date,
+        }
+        return ret
