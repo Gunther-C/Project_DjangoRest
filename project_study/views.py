@@ -92,11 +92,10 @@ class ContributorViewSet(ModelViewSet):
         project = serializer.validated_data.get('project')
         user = serializer.validated_data.get('user')
 
-        self.check_object_permissions(self.request, project)
+        # self.check_object_permissions(self.request, project)
 
         if Contributor.objects.filter(user=user, project=project, role='contributor').exists():
             raise ValidationError({"detail": "Cette utilisateur est déja contributeur de ce projet."})
-
         if user == self.request.user:
             raise PermissionDenied({"detail": "Vous êtes déja l'auteur de ce projet"})
 
@@ -141,9 +140,9 @@ class IssueViewSet(ModelViewSet):
 
 class CommentViewSet(ModelViewSet):
     """
-    Filter : Tous les comments de l'utilisateur connecté
-    Filter : Un comment (l'utilisateur connecté est auteur ou contributeur)
-    Filter : Tous les comments d'une issue (l'utilisateur connecté est auteur ou contributeur)
+    Filter : Tous les commentaires de l'utilisateur connecté
+    Filter : Un commentaire (l'utilisateur connecté est auteur ou contributeur)
+    Filter : Tous les commentaires d'une issue (l'utilisateur connecté est auteur ou contributeur)
     """
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
