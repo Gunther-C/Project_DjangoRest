@@ -50,12 +50,3 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
-
-
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
-    bio = models.TextField()
-
-    def __str__(self):
-        return f"{self.user} profile"

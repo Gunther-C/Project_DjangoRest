@@ -6,7 +6,6 @@ User = get_user_model()
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = User
         fields = ['username', 'age', 'password', 'can_be_contacted', 'can_data_be_shared']

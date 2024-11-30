@@ -13,4 +13,3 @@ urlpatterns = [
     path('', include(router.urls)),
 ]
 
-# path('profile/', UserProfileViewSet.as_view({'get': 'retrieve', 'patch': 'update'})),

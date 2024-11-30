@@ -119,12 +119,10 @@ class IssueViewSet(ModelViewSet):
         return self.queryset.filter(project__contributor_project__user=self.request.user)
 
     def perform_create(self, serializer):
-        # assigned_to = serializer.validated_data.get('assigned_to')
         assigned_to = self.request.data.get('assigned_to')
         project = serializer.validated_data.get('project')
         author = get_object_or_404(Contributor, project=project, user=self.request.user)
 
-        # if assigned_to and not Contributor.objects.filter(project=project, user=assigned_to.user).exists():
         if assigned_to and not Contributor.objects.filter(project=project, pk=assigned_to).exists():
             raise ValidationError('L’utilisateur assigné doit être un contributeur du projet.')
         serializer.save(author=author)

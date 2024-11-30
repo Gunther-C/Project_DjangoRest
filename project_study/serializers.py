@@ -42,6 +42,7 @@ class IssueSerializer(serializers.ModelSerializer):
         ret['project'] = instance.project.name
         ret['author'] = instance.author.user.username
         ret['assigned_to'] = {
+            "id": instance.assigned_to.user.pk,
             "name": instance.assigned_to.user.username,
             "role": instance.assigned_to.role
         } if instance.assigned_to else None

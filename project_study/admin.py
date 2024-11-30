@@ -6,8 +6,8 @@ class ProjectAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'description', 'author', 'type', 'created_date')
     list_filter = ('type', 'created_date')
     fieldsets = (
-        ('Projet', {'fields': ('project',)}),
-        ('Details', {'fields': ('name', 'description', 'author', 'type')}),
+        ('Projet', {'fields': ('author',)}),
+        ('Details', {'fields': ('name', 'description', 'type')}),
     )
     search_fields = ('name', 'author__username')
     ordering = ('created_date',)

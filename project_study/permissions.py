@@ -37,13 +37,14 @@ class IsContributors(BasePermission):
 
 class IsIssue(BasePermission):
     def has_permission(self, request, view):
+        project = request.query_params.get('project')
         project_id = request.query_params.get('project_id')
         if project_id:
             if not project_id.isdigit():
                 raise ValidationError({"Detail": "Un nombre entier !"})
             return Issue.objects.filter(project__id=project_id,
                                         project__contributor_project__user=request.user).exists()
-        return Issue.objects.filter(project__contributor_project__user=request.user).exists()
+        return Contributor.objects.filter(user=request.user, project=project).exists()
 
     def has_object_permission(self, request, view, obj):
         if view.action in ['update', 'partial_update', 'destroy']:
@@ -59,7 +60,7 @@ class IsComment(BasePermission):
                 raise ValidationError({"Detail": "Un nombre entier !"})
             return Comment.objects.filter(issue__id=project_id,
                                           issue__project__contributor_project__user=request.user).exists()
-        return Comment.objects.filter(issue__project__contributor_project__user=request.user).exists()
+        return Issue.objects.filter(project__contributor_project__user=request.user).exists()
 
     def has_object_permission(self, request, view, obj):
         if view.action in ['update', 'partial_update', 'destroy']:
